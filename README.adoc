@@ -1,0 +1,61 @@
+= _Repeatable high-resolution statistical downscaling through deep learning_
+:icons: font
+:my_name: Dánnell Quesada-Chacón
+:source-highlighter: pygments
+:pygments-linenums-mode: inline
+
+This repository contains the source code necessary to reproduce the results of the manuscript "Repeatable high-resolution statistical downscaling through deep learning" to be submitted to _Geoscientific Model Development_. This work is built on top of the https://github.com/SantanderMetGroup/climate4R[`climate4R`] framework.
+
+== Code to train and validate the models
+
+The folder `train_scripts` contains all the modifications to the base `OEG_cnn_full.R` file to produce all the needed validation data analysed in _Results and discussion_. The aforementioned script is based on the code by Baño-Medina et al. (2020, https://doi.org/10.5194/gmd-13-2109-2020). The `OEG_cnn_full.R` trains and validates 100 different _deep learning_ models. The following variables can be changed to train a different set of models:
+
+[source, r]
+----
+# Benchmark model CNN1 and variations of it
+deepName <- c("CNN1", "CNN32-1", "CNN64-1", "CNN64_3-1")
+
+u_model <- c("", "pp") # Type of u model, "" for U-Net, "pp" for U-Net++
+u_layers <- c(3, 4, 5) # Depth of the u model
+u_seeds <- c(16, 32, 64, 128) # Number of filters of the first layer
+u_Flast <- c(1, 3) # Number of filters of the last ConvUnit
+u_do <- c(TRUE) # Boolean for dropout within the u model
+u_spdor <- c(0.25) # Fraction of the spatial dropout within the u model
+u_dense <- c(FALSE) # Boolean for dense units after ConvUnit
+u_dunits <- list(c(256, 128), c(128)) # Dense units, passed as a list, several layers supported
+act_main <- c("lelu") # Activation function within u model and dense units
+act_last <- c("lelu") # Activation function for the last ConvUnit
+alpha1 <- c(0.3) # If leaky relu (lelu) used, which alpha. For u model and dense units
+alpha2 <- c(0.3) # Same as above but for last ConvUnit
+BN1 <- c(TRUE) # Batch normalization inside u model
+BN2 <- c(FALSE, TRUE) # Batch normalization for the last ConvUnit
+----
+
+== Parsing and auxiliary functions
+
+In `parse_aux` can be found all the functions and code to parse the results and to generate the data shown in _Results and discussion_. `results_plots.R` is the main script to generate the tables and figures, it relies on `aux_results.R` for it. `unet_def.R` contains the functions to define the _U_-like architectures and other related needed functions, called from  the `OEG_cnn*` files. Note that the _U_ architectures are defined in a way that the depth is a variable, alternatively to their original definitions. Lastly, `aux_funs_train.R` holds further functions to create and to ease the training of the models, also needed by the `OEG_cnn*` files.
+
+== Job files
+
+The `bash` files in the root folder run the _R_ scripts and submit the job files to https://slurm.schedmd.com/documentation.html[slurm]. The _predictors_ and _predictand_ files necessary to run the code can be downloaded here: https://doi.org/10.5281/zenodo.5809553[image:https://zenodo.org/badge/DOI/10.5281/zenodo.5809553.svg[DOI]]. These files need to be saved to the folder `./Data/precip`, relative to where this repository is downloaded.
+
+Note that to run the code it is necessary either an environment set-up in accordance to Section 3.5 of the manuscript or the https://sylabs.io/guides/3.5/user-guide/index.html[_singularity container_] in https://doi.org/10.5281/zenodo.5809705[image:https://zenodo.org/badge/DOI/10.5281/zenodo.5809705.svg[DOI]], available under request. The _container_ should be in the root folder of this repository.
+
+The models were trained in the https://doc.zih.tu-dresden.de/jobs_and_resources/alpha_centauri/[_Alpha Centauri_] sub-cluster of the Center for Information Services and High Performance Computing (ZIH) of the Technische Universität Dresden. Therefore, if the scripts will be run on an HPC system, the `job_alphacentauri*` files need to be changed accordingly. The `submit_ALL.sh` file submits all the jobs necessary to recreate the results shown in the manuscript. Each of the 100 models defined in `OEG_cnn_full.R` is trained once with 10 different _random seed numbers_, shown in the `seeds` file. All the other models (`OEG_cnn_*`) are trained 10 times with one seed.
+
+Note the order of the arguments passed to the `bash` files are: 
+
+. Name of the file to run (after `OEG_cnn_`), e.g., `full` or `4`
+. Number of repetitions per each model, e.g., 1 or 10
+. _Boolean_ to pass to the `TF_DETERMINISTIC_OPS` flag, to use the GPU deterministic algorithms
+. _Random seed number_
+* Note that in the case of the `run_seeds.sh`, the `seeds` file is already used, so only the first 3 arguments are needed
+
+The `submit_ALL.sh` file shows all the arguments passed to the different files. The validation results and the history of the training process are then copied to the `val_hist` folder. 
+
+
+== Additional notes
+
+* The code was written for an HPC system, nevertheless, the contents of the `job_alphacentauri*` files can be run on any Linux system with the aforementioned environment or _container_, with minor modifications.
+
+* The plots seen in the manuscript were generated from a PC with _R_ 4.1.2. The container has _R_ 3.6.3 built-in, so, small differences are seen in the plots generated with it, such as overlapping of text in figures 5 and 6. Still, the code can be modified to fix these minor issues.
